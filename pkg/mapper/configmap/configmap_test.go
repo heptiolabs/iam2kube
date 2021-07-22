@@ -1,14 +1,13 @@
 package configmap
 
 import (
-	"reflect"
-	"testing"
-
-	"time"
-
 	core_v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"reflect"
+	"testing"
+	"time"
+
 	"k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/kubernetes/typed/core/v1/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -157,7 +156,8 @@ func TestLoadConfigMap(t *testing.T) {
 		})
 
 	stopCh := make(chan struct{})
-	ms.startLoadConfigMap(stopCh)
+	metricsObj := createMetrics()
+	ms.startLoadConfigMap(stopCh, metricsObj)
 	defer close(stopCh)
 
 	time.Sleep(2 * time.Millisecond)

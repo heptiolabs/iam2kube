@@ -21,6 +21,13 @@ import (
 	"sigs.k8s.io/aws-iam-authenticator/pkg/config"
 )
 
+const (
+	metricSuccess     = "success"
+	metricFailure     = "fail"
+	metricSuccessUnit = 1.0
+	metricFailureUnit = 0.0
+)
+
 type MapStore struct {
 	mutex sync.RWMutex
 	users map[string]config.UserMapping
@@ -47,7 +54,7 @@ func New(masterURL, kubeConfig string) (*MapStore, error) {
 
 // Starts a go routine which will watch the configmap and update the in memory data
 // when the values change.
-func (ms *MapStore) startLoadConfigMap(stopCh <-chan struct{}) {
+func (ms *MapStore) startLoadConfigMap(stopCh <-chan struct{}, metricsObj metrics) {
 	go func() {
 		for {
 			select {
@@ -59,10 +66,12 @@ func (ms *MapStore) startLoadConfigMap(stopCh <-chan struct{}) {
 					FieldSelector: fields.OneTermEqualSelector("metadata.name", "aws-auth").String(),
 				})
 				if err != nil {
-					logrus.Warn("Unable to re-establish watch.  Sleeping for 5 seconds")
+					logrus.Errorf("Unable to re-establish watch: %v, sleeping for 5 seconds.", err)
+					metricsObj.watch.WithLabelValues(metricFailure).Set(metricFailureUnit)
 					time.Sleep(5 * time.Second)
 					continue
 				}
+				metricsObj.watch.WithLabelValues(metricSuccess).Set(metricSuccessUnit)
 				for r := range watcher.ResultChan() {
 					switch r.Type {
 					case watch.Error:

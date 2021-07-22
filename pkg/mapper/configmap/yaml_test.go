@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -92,6 +93,13 @@ func TestConfigMap(t *testing.T) {
 			"aws-auth-missing-bar.yaml", nil, nil, nil, true,
 		},
 	}
+	metricsObj := metrics{
+		watch: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: metricNS,
+			Name:      "authenticator_watch_success",
+			Help:      "Authenticator Watch Success",
+		}, []string{"result"}),
+	}
 	for _, tt := range tests {
 		t.Run(tt.configMapYaml, func(t *testing.T) {
 			cm, err := configMapFromYaml(tt.configMapYaml)
@@ -106,7 +114,7 @@ func TestConfigMap(t *testing.T) {
 			ms.configMap = cs.CoreV1().ConfigMaps("kube-system")
 
 			stopCh := make(chan struct{})
-			ms.startLoadConfigMap(stopCh)
+			ms.startLoadConfigMap(stopCh, metricsObj)
 			defer close(stopCh)
 
 			time.Sleep(2 * time.Millisecond)
